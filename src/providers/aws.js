@@ -43,6 +43,12 @@ export class S3Presigner {
   #forcePathStyle;
 
   /**
+   * Path prefix for all operations (e.g., 'walkthru-earth/opensensor-space/').
+   * @type {string}
+   */
+  #pathPrefix;
+
+  /**
    * Create a new S3Presigner.
    * @param {{ [key: string]: string }} env - Environment variables.
    * @throws {Error} If required environment variables are missing.
@@ -55,6 +61,7 @@ export class S3Presigner {
       S3_BUCKET,
       S3_REGION = 'us-east-1',
       S3_FORCE_PATH_STYLE = 'false',
+      S3_PATH_PREFIX = '',
     } = env;
 
     if (!S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
@@ -76,6 +83,7 @@ export class S3Presigner {
     this.#bucket = S3_BUCKET;
     this.#region = S3_REGION;
     this.#forcePathStyle = S3_FORCE_PATH_STYLE === 'true';
+    this.#pathPrefix = S3_PATH_PREFIX.replace(/^\/|\/$/g, ''); // Normalize: remove leading/trailing slashes
   }
 
   /**
@@ -87,17 +95,18 @@ export class S3Presigner {
   #buildUrl(path, bucket) {
     const bucketName = bucket || this.#bucket;
     const cleanPath = path.replace(/^\//, ''); // Remove leading slash
+    const fullPath = this.#pathPrefix ? `${this.#pathPrefix}/${cleanPath}` : cleanPath;
 
     if (this.#forcePathStyle) {
       // Path-style: https://endpoint/bucket/key
-      return new URL(`${this.#endpoint}/${bucketName}/${cleanPath}`);
+      return new URL(`${this.#endpoint}/${bucketName}/${fullPath}`);
     }
 
     // Virtual-hosted-style: https://bucket.endpoint/key
     const endpointUrl = new URL(this.#endpoint);
     const virtualHost = `${bucketName}.${endpointUrl.host}`;
 
-    return new URL(`${endpointUrl.protocol}//${virtualHost}/${cleanPath}`);
+    return new URL(`${endpointUrl.protocol}//${virtualHost}/${fullPath}`);
   }
 
   /**

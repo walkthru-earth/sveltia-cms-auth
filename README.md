@@ -148,6 +148,7 @@ If you want to use cloud storage backends (S3, R2, GCS, Azure) with Sveltia CMS,
 - `S3_REGION`: (Optional) AWS region. Default: `us-east-1`
 - `S3_ENDPOINT`: (Optional) Custom endpoint for S3-compatible services
 - `S3_FORCE_PATH_STYLE`: (Optional) Set to `true` for MinIO or path-style URLs
+- `S3_PATH_PREFIX`: (Optional) Path prefix for all operations. Useful for shared buckets like [Source Cooperative](https://source.coop/) where you have write access only to a specific prefix (e.g., `walkthru-earth/opensensor-space`)
 
 ##### Cloudflare R2
 
@@ -155,18 +156,21 @@ If you want to use cloud storage backends (S3, R2, GCS, Azure) with Sveltia CMS,
 - `R2_SECRET_ACCESS_KEY`: R2 secret access key
 - `R2_ACCOUNT_ID`: Cloudflare account ID
 - `R2_BUCKET`: R2 bucket name
+- `R2_PATH_PREFIX`: (Optional) Path prefix for all operations
 
 ##### Google Cloud Storage
 
 - `GCS_PROJECT_ID`: GCP project ID
 - `GCS_BUCKET`: GCS bucket name
 - `GCS_SERVICE_ACCOUNT_KEY`: Service account JSON key (as a string)
+- `GCS_PATH_PREFIX`: (Optional) Path prefix for all operations
 
 ##### Azure Blob Storage
 
 - `AZURE_STORAGE_ACCOUNT`: Azure storage account name
 - `AZURE_STORAGE_KEY`: Azure storage account key
 - `AZURE_CONTAINER`: Azure container name
+- `AZURE_PATH_PREFIX`: (Optional) Path prefix for all operations
 
 #### Access Control (Optional)
 

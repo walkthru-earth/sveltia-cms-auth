@@ -37,12 +37,18 @@ export class GCSPresigner {
   #privateKey;
 
   /**
+   * Path prefix for all operations (e.g., 'walkthru-earth/opensensor-space/').
+   * @type {string}
+   */
+  #pathPrefix;
+
+  /**
    * Create a new GCSPresigner.
    * @param {{ [key: string]: string }} env - Environment variables.
    * @throws {Error} If required environment variables are missing.
    */
   constructor(env) {
-    const { GCS_PROJECT_ID, GCS_BUCKET, GCS_SERVICE_ACCOUNT_KEY } = env;
+    const { GCS_PROJECT_ID, GCS_BUCKET, GCS_SERVICE_ACCOUNT_KEY, GCS_PATH_PREFIX = '' } = env;
 
     if (!GCS_PROJECT_ID) {
       throw new Error('GCS_PROJECT_ID is required');
@@ -73,6 +79,7 @@ export class GCSPresigner {
     this.#bucket = GCS_BUCKET;
     this.#clientEmail = serviceAccount.client_email;
     this.#privateKey = serviceAccount.private_key;
+    this.#pathPrefix = GCS_PATH_PREFIX.replace(/^\/|\/$/g, ''); // Normalize: remove leading/trailing slashes
   }
 
   /**
@@ -126,6 +133,7 @@ export class GCSPresigner {
     const { operation, path, bucket, expiresIn = 900 } = options;
     const bucketName = bucket || this.#bucket;
     const cleanPath = path.replace(/^\//, ''); // Remove leading slash
+    const fullPath = this.#pathPrefix ? `${this.#pathPrefix}/${cleanPath}` : cleanPath;
     // Determine HTTP method based on operation
     let method = 'GET';
 
@@ -144,7 +152,7 @@ export class GCSPresigner {
       .replace(/\.\d{3}/, '');
 
     const datestamp = timestamp.slice(0, 8);
-    const canonicalUri = `/${bucketName}/${cleanPath}`;
+    const canonicalUri = `/${bucketName}/${fullPath}`;
     const credentialScope = `${datestamp}/auto/storage/goog4_request`;
     const credential = `${this.#clientEmail}/${credentialScope}`;
     const signedHeaders = 'host';

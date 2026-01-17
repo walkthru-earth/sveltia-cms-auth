@@ -17,6 +17,8 @@ ignorePaths:
 words:
   - Backblaze
   - cooldown
+  - opensensor
+  - walkthru
   - CVEs
   - datestamp
   - Decap

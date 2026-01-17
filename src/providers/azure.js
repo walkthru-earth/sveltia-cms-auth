@@ -28,12 +28,23 @@ export class AzurePresigner {
   #container;
 
   /**
+   * Path prefix for all operations (e.g., 'walkthru-earth/opensensor-space/').
+   * @type {string}
+   */
+  #pathPrefix;
+
+  /**
    * Create a new AzurePresigner.
    * @param {{ [key: string]: string }} env - Environment variables.
    * @throws {Error} If required environment variables are missing.
    */
   constructor(env) {
-    const { AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_KEY, AZURE_CONTAINER } = env;
+    const {
+      AZURE_STORAGE_ACCOUNT,
+      AZURE_STORAGE_KEY,
+      AZURE_CONTAINER,
+      AZURE_PATH_PREFIX = '',
+    } = env;
 
     if (!AZURE_STORAGE_ACCOUNT) {
       throw new Error('AZURE_STORAGE_ACCOUNT is required');
@@ -50,6 +61,7 @@ export class AzurePresigner {
     this.#accountName = AZURE_STORAGE_ACCOUNT;
     this.#accountKey = AZURE_STORAGE_KEY;
     this.#container = AZURE_CONTAINER;
+    this.#pathPrefix = AZURE_PATH_PREFIX.replace(/^\/|\/$/g, ''); // Normalize: remove leading/trailing slashes
   }
 
   /**
@@ -98,6 +110,7 @@ export class AzurePresigner {
     const { operation, path, contentType, bucket, expiresIn = 900 } = options;
     const containerName = bucket || this.#container;
     const cleanPath = path.replace(/^\//, ''); // Remove leading slash
+    const fullPath = this.#pathPrefix ? `${this.#pathPrefix}/${cleanPath}` : cleanPath;
     // Determine permissions based on operation
     let permissions = 'r'; // Default: Read
 
@@ -118,7 +131,7 @@ export class AzurePresigner {
     const signedExpiry = this.#formatDate(expiryTime);
     const signedPermissions = permissions;
     const signedProtocol = 'https';
-    const canonicalizedResource = `/blob/${this.#accountName}/${containerName}/${cleanPath}`;
+    const canonicalizedResource = `/blob/${this.#accountName}/${containerName}/${fullPath}`;
 
     // String to sign (order matters!)
     // https://docs.microsoft.com/en-us/rest/api/storageservices/create-service-sas#version-2020-12-06-and-later
@@ -161,7 +174,7 @@ export class AzurePresigner {
     }
 
     // Build final URL
-    const baseUrl = `https://${this.#accountName}.blob.core.windows.net/${containerName}/${cleanPath}`;
+    const baseUrl = `https://${this.#accountName}.blob.core.windows.net/${containerName}/${fullPath}`;
 
     return `${baseUrl}?${sasParams.toString()}`;
   }

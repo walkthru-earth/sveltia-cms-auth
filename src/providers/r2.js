@@ -30,12 +30,24 @@ export class R2Presigner {
   #bucket;
 
   /**
+   * Path prefix for all operations (e.g., 'walkthru-earth/opensensor-space/').
+   * @type {string}
+   */
+  #pathPrefix;
+
+  /**
    * Create a new R2Presigner.
    * @param {{ [key: string]: string }} env - Environment variables.
    * @throws {Error} If required environment variables are missing.
    */
   constructor(env) {
-    const { R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ACCOUNT_ID, R2_BUCKET } = env;
+    const {
+      R2_ACCESS_KEY_ID,
+      R2_SECRET_ACCESS_KEY,
+      R2_ACCOUNT_ID,
+      R2_BUCKET,
+      R2_PATH_PREFIX = '',
+    } = env;
 
     if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
       throw new Error('R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY are required');
@@ -59,6 +71,7 @@ export class R2Presigner {
 
     this.#accountId = R2_ACCOUNT_ID;
     this.#bucket = R2_BUCKET;
+    this.#pathPrefix = R2_PATH_PREFIX.replace(/^\/|\/$/g, ''); // Normalize: remove leading/trailing slashes
   }
 
   /**
@@ -71,10 +84,9 @@ export class R2Presigner {
   #buildUrl(path, bucket) {
     const bucketName = bucket || this.#bucket;
     const cleanPath = path.replace(/^\//, ''); // Remove leading slash
+    const fullPath = this.#pathPrefix ? `${this.#pathPrefix}/${cleanPath}` : cleanPath;
 
-    return new URL(
-      `https://${this.#accountId}.r2.cloudflarestorage.com/${bucketName}/${cleanPath}`,
-    );
+    return new URL(`https://${this.#accountId}.r2.cloudflarestorage.com/${bucketName}/${fullPath}`);
   }
 
   /**
