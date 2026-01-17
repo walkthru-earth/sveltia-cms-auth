@@ -2,7 +2,7 @@
  * Sveltia CMS Auth - Cloudflare Worker.
  * Provides OAuth authentication and presigned URL generation for Sveltia CMS.
  * Supports multiple storage providers (S3, R2, GCS, Azure) and OAuth providers (GitHub, GitLab).
- * @see https://github.com/sveltia/sveltia-cms-auth
+ * @see https://github.com/walkthru-earth/sveltia-cms-auth
  */
 
 import { handleAuth, handleCallback } from './handlers/oauth.js';

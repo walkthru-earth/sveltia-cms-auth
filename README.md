@@ -1,6 +1,6 @@
 # Sveltia CMS Authenticator
 
-This simple [Cloudflare Workers](https://workers.cloudflare.com/) script allows [Sveltia CMS](https://github.com/sveltia/sveltia-cms) (or Netlify/Decap CMS) users to authenticate with [GitHub](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) or [GitLab](https://docs.gitlab.com/ee/api/oauth2.html#authorization-code-flow).
+This [Cloudflare Workers](https://workers.cloudflare.com/) script allows [Sveltia CMS](https://github.com/sveltia/sveltia-cms) (or Netlify/Decap CMS) users to authenticate with [GitHub](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) or [GitLab](https://docs.gitlab.com/ee/api/oauth2.html#authorization-code-flow), and provides secure presigned URL generation for cloud storage backends (S3, R2, GCS, Azure).
 
 You don’t have to use it if you previously had Netlify/Decap CMS and your site is still being deployed to Netlify or if you have already used [another 3rd party OAuth client](https://decapcms.org/docs/external-oauth-clients/).
 
@@ -16,13 +16,66 @@ You can use it if your site is hosted (or has been moved to) somewhere else, suc
 > GitLab has supported client-side PKCE for a while already — see our [documentation](https://sveltiacms.app/en/docs/backends/gitlab#pkce-authorization) for how to set it up without this authenticator.
 <!-- prettier-ignore-end -->
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Browser["Browser (Sveltia CMS)"]
+        CMS[Sveltia CMS]
+    end
+
+    subgraph Worker["Cloudflare Worker"]
+        Auth[OAuth Handler]
+        Session[Session Manager]
+        Presign[Presign Handler]
+    end
+
+    subgraph OAuth["OAuth Providers"]
+        GitHub[GitHub]
+        GitLab[GitLab]
+    end
+
+    subgraph Storage["Storage Providers"]
+        S3[AWS S3]
+        R2[Cloudflare R2]
+        GCS[Google Cloud Storage]
+        Azure[Azure Blob Storage]
+        MinIO[MinIO / S3-Compatible]
+    end
+
+    CMS -->|1. OAuth Login| Auth
+    Auth -->|2. Redirect| OAuth
+    OAuth -->|3. Callback with code| Auth
+    Auth -->|4. Exchange for token| OAuth
+    Auth -->|5. Return OAuth token| CMS
+
+    CMS -->|6. Token Exchange| Session
+    Session -->|7. Validate with OAuth provider| OAuth
+    Session -->|8. Return JWT session token| CMS
+
+    CMS -->|9. Request presigned URL| Presign
+    Presign -->|10. Validate JWT| Session
+    Presign -->|11. Generate presigned URL| Storage
+    Presign -->|12. Return presigned URL| CMS
+
+    CMS -->|13. Direct upload/download| Storage
+```
+
+### Key Features
+
+- **OAuth Authentication**: Support for GitHub and GitLab OAuth flows
+- **Session Management**: JWT-based session tokens for secure API access
+- **Presigned URLs**: Generate time-limited URLs for direct cloud storage access
+- **Multi-Cloud Support**: AWS S3, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, MinIO
+- **Vendor Agnostic**: Auto-detects storage provider from environment variables
+
 ## How to use it
 
 ### Step 1. Deploy this project to Cloudflare Workers
 
 Sign up with Cloudflare, and click the button below to start deploying.
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/sveltia/sveltia-cms-auth)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/walkthru-earth/sveltia-cms-auth)
 
 Alternatively, you can clone the project and run [`wrangler deploy`](https://developers.cloudflare.com/workers/wrangler/commands/#deploy) locally.
 
@@ -35,7 +88,7 @@ Once deployed, open your Cloudflare Workers dashboard, select the `sveltia-cms-a
 [Register a new OAuth application](https://github.com/settings/applications/new) on GitHub ([details](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)) with the following properties, including your Worker URL from Step 1:
 
 - Application name: `Sveltia CMS Authenticator` (or whatever)
-- Homepage URL: `https://github.com/sveltia/sveltia-cms-auth` (or whatever)
+- Homepage URL: `https://github.com/walkthru-earth/sveltia-cms-auth` (or whatever)
 - Application description: (can be left empty)
 - Authorization callback URL: `<YOUR_WORKER_URL>/callback`
 
@@ -77,6 +130,48 @@ Go back to the `sveltia-cms-auth` service page on the Cloudflare dashboard, sele
 
 Save and deploy.
 
+### Step 3b. Configure Presigned URLs (Optional)
+
+If you want to use cloud storage backends (S3, R2, GCS, Azure) with Sveltia CMS, configure the following additional environment variables.
+
+#### Session Secret (Required for presigned URLs)
+
+- `JWT_SECRET`: A secret key for signing session tokens. Generate with: `openssl rand -hex 32`
+
+#### Storage Provider (Choose ONE)
+
+##### AWS S3
+
+- `S3_ACCESS_KEY_ID`: AWS access key ID
+- `S3_SECRET_ACCESS_KEY`: AWS secret access key
+- `S3_BUCKET`: S3 bucket name
+- `S3_REGION`: (Optional) AWS region. Default: `us-east-1`
+- `S3_ENDPOINT`: (Optional) Custom endpoint for S3-compatible services
+- `S3_FORCE_PATH_STYLE`: (Optional) Set to `true` for MinIO or path-style URLs
+
+##### Cloudflare R2
+
+- `R2_ACCESS_KEY_ID`: R2 access key ID
+- `R2_SECRET_ACCESS_KEY`: R2 secret access key
+- `R2_ACCOUNT_ID`: Cloudflare account ID
+- `R2_BUCKET`: R2 bucket name
+
+##### Google Cloud Storage
+
+- `GCS_PROJECT_ID`: GCP project ID
+- `GCS_BUCKET`: GCS bucket name
+- `GCS_SERVICE_ACCOUNT_KEY`: Service account JSON key (as a string)
+
+##### Azure Blob Storage
+
+- `AZURE_STORAGE_ACCOUNT`: Azure storage account name
+- `AZURE_STORAGE_KEY`: Azure storage account key
+- `AZURE_CONTAINER`: Azure container name
+
+#### Access Control (Optional)
+
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins, e.g. `https://example.com`
+
 ### Step 4. Update your CMS configuration
 
 Open `admin/config.yml` locally or remotely, and add your Worker URL from Step 1 as the new `base_url` property under `backend`:
@@ -96,6 +191,102 @@ Commit the change. Once deployed, you can sign into Sveltia CMS remotely with Gi
 ### Why do I have to set this thing up in the first place?
 
 Technically, we could host Sveltia CMS Authenticator on our own server and let anyone use it, just like Netlify does. The cost probably wouldn’t matter because it’s just a small, short-lived script. However, running such a **service** certainly comes with legal, privacy and security liabilities that we cannot afford. Remember that Sveltia CMS is nothing more than [@kyoshino](https://github.com/kyoshino)’s personal project. That’s why the authenticator is not offered as SaaS and you have to install it yourself.
+
+## API Reference
+
+### OAuth Endpoints
+
+| Endpoint    | Method | Description            |
+| ----------- | ------ | ---------------------- |
+| `/auth`     | GET    | Start OAuth flow       |
+| `/callback` | GET    | OAuth callback handler |
+
+### Session Endpoints
+
+| Endpoint          | Method | Description                                                       |
+| ----------------- | ------ | ----------------------------------------------------------------- |
+| `/session`        | GET    | Validate session token (requires `Authorization: Bearer <token>`) |
+| `/token-exchange` | POST   | Exchange OAuth token for session token                            |
+
+**Token Exchange Request:**
+
+```json
+{
+  "provider": "github",
+  "token": "<oauth_access_token>"
+}
+```
+
+**Token Exchange Response:**
+
+```json
+{
+  "sessionToken": "<jwt_token>",
+  "user": { "id": "123", "name": "User", "login": "username" },
+  "expiresIn": 14400
+}
+```
+
+### Presigned URL Endpoints
+
+| Endpoint         | Method | Description                                |
+| ---------------- | ------ | ------------------------------------------ |
+| `/presign`       | POST   | Generate presigned URL for single path     |
+| `/presign-batch` | POST   | Generate presigned URLs for multiple paths |
+
+All presign endpoints require `Authorization: Bearer <session_token>` header.
+
+**Single Presign Request:**
+
+```json
+{
+  "operation": "GET",
+  "path": "uploads/image.jpg",
+  "contentType": "image/jpeg",
+  "provider": "s3",
+  "bucket": "my-bucket"
+}
+```
+
+**Single Presign Response:**
+
+```json
+{
+  "url": "https://...",
+  "expiresIn": 900,
+  "path": "uploads/image.jpg",
+  "operation": "GET"
+}
+```
+
+**Batch Presign Request:**
+
+```json
+{
+  "paths": ["file1.jpg", "file2.jpg"],
+  "operation": "GET",
+  "provider": "r2"
+}
+```
+
+**Batch Presign Response:**
+
+```json
+{
+  "urls": {
+    "file1.jpg": "https://...",
+    "file2.jpg": "https://..."
+  },
+  "expiresIn": 900,
+  "count": 2
+}
+```
+
+### Health Check
+
+| Endpoint  | Method | Description           |
+| --------- | ------ | --------------------- |
+| `/health` | GET    | Health check endpoint |
 
 ## Acknowledgements
 
