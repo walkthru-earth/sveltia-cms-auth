@@ -41,17 +41,39 @@ function handleCORS(request, env) {
 }
 
 /**
- * Create a simple JSON response.
+ * Get the appropriate CORS origin based on request and configuration.
+ * @param {Request} request - HTTP request.
+ * @param {{ [key: string]: string }} env - Environment variables.
+ * @returns {string} CORS origin to use.
+ */
+function getCorsOrigin(request, env) {
+  const origin = request.headers.get('Origin') || '*';
+  const { ALLOWED_ORIGINS = '*' } = env;
+
+  if (ALLOWED_ORIGINS !== '*') {
+    const allowedList = ALLOWED_ORIGINS.split(',').map((s) => s.trim());
+
+    return allowedList.includes(origin) ? origin : allowedList[0] || '*';
+  }
+
+  return origin !== '*' ? origin : '*';
+}
+
+/**
+ * Create a simple JSON response with proper CORS headers.
  * @param {object} data - Response data.
+ * @param {Request} request - HTTP request for CORS origin.
+ * @param {{ [key: string]: string }} env - Environment variables.
  * @param {number} [status] - HTTP status code.
  * @returns {Response} JSON response.
  */
-function jsonResponse(data, status = 200) {
+function jsonResponse(data, request, env, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': getCorsOrigin(request, env),
+      'Access-Control-Allow-Credentials': 'true',
     },
   });
 }
@@ -77,11 +99,15 @@ export default {
 
     // Health check endpoint
     if (method === 'GET' && pathname === '/health') {
-      return jsonResponse({
-        status: 'ok',
-        version: '0.2.0',
-        features: ['oauth', 'presign', 'session'],
-      });
+      return jsonResponse(
+        {
+          status: 'ok',
+          version: '0.2.0',
+          features: ['oauth', 'presign', 'session'],
+        },
+        request,
+        env,
+      );
     }
 
     // ==================
@@ -130,8 +156,8 @@ export default {
     // Not Found
     // ==================
 
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         error: 'Not Found',
         endpoints: {
           oauth: {
@@ -150,14 +176,10 @@ export default {
             'GET /health': 'Health check',
           },
         },
-      }),
-      {
-        status: 404,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
       },
+      request,
+      env,
+      404,
     );
   },
 };

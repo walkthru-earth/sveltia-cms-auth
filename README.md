@@ -176,6 +176,71 @@ If you want to use cloud storage backends (S3, R2, GCS, Azure) with Sveltia CMS,
 
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins, e.g. `https://example.com`
 
+### Step 3c. Configure Storage Bucket CORS (Required for Browser Access)
+
+When using presigned URLs, the browser makes direct requests to your storage bucket. You must configure CORS on the bucket itself to allow these requests, especially for range requests used by DuckDB/Parquet.
+
+#### AWS S3
+
+Create a CORS configuration on your bucket:
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "DELETE", "HEAD"],
+    "AllowedOrigins": ["https://your-cms-domain.com"],
+    "ExposeHeaders": ["Content-Range", "Accept-Ranges", "Content-Length", "ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Apply with: `aws s3api put-bucket-cors --bucket YOUR_BUCKET --cors-configuration file://cors.json`
+
+#### Cloudflare R2
+
+In the R2 dashboard, go to your bucket → Settings → CORS Policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://your-cms-domain.com"],
+    "AllowedMethods": ["GET", "PUT", "DELETE", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["Content-Range", "Accept-Ranges", "Content-Length", "ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+#### Google Cloud Storage
+
+```json
+[
+  {
+    "origin": ["https://your-cms-domain.com"],
+    "method": ["GET", "PUT", "DELETE", "HEAD"],
+    "responseHeader": ["Content-Range", "Accept-Ranges", "Content-Length", "ETag"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+Apply with: `gsutil cors set cors.json gs://YOUR_BUCKET`
+
+#### Azure Blob Storage
+
+Configure CORS in the Azure portal under Storage Account → Resource sharing (CORS):
+
+- Allowed origins: `https://your-cms-domain.com`
+- Allowed methods: `GET, PUT, DELETE, HEAD`
+- Allowed headers: `*`
+- Exposed headers: `Content-Range, Accept-Ranges, Content-Length, ETag`
+- Max age: `3600`
+
+> [!IMPORTANT] The `ExposeHeaders` (or `responseHeader` for GCS) configuration is critical for DuckDB WASM to work with Parquet files. DuckDB uses HTTP range requests to read only the necessary parts of large files, and it needs access to `Content-Range` and `Accept-Ranges` headers.
+
 ### Step 4. Update your CMS configuration
 
 Open `admin/config.yml` locally or remotely, and add your Worker URL from Step 1 as the new `base_url` property under `backend`:

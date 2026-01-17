@@ -23,6 +23,7 @@ words:
   - datestamp
   - Decap
   - esbuild
+  - gsutil
   - hostnames
   - jsdoc
   - kyoshino
