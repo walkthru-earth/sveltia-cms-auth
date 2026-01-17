@@ -1,3 +1,55 @@
 name = "sveltia-cms-auth"
 main = "src/index.js"
-compatibility_date = "2023-03-24"
+compatibility_date = "2024-01-01"
+
+# ===========================================
+# Environment Variables Configuration
+# ===========================================
+# Add secrets using: wrangler secret put <NAME>
+#
+# OAuth Secrets (required for OAuth authentication):
+#   - GITHUB_CLIENT_ID
+#   - GITHUB_CLIENT_SECRET
+#   - GITLAB_CLIENT_ID (optional, for GitLab support)
+#   - GITLAB_CLIENT_SECRET (optional, for GitLab support)
+#
+# Session Secrets (required for presigned URLs):
+#   - JWT_SECRET (generate with: openssl rand -hex 32)
+#
+# Storage Provider Secrets (configure ONE provider):
+#
+# For AWS S3:
+#   - S3_ACCESS_KEY_ID
+#   - S3_SECRET_ACCESS_KEY
+#   - S3_BUCKET
+#   - S3_REGION (optional, default: us-east-1)
+#   - S3_ENDPOINT (optional, for S3-compatible services)
+#   - S3_FORCE_PATH_STYLE (optional, "true" for MinIO)
+#
+# For Cloudflare R2:
+#   - R2_ACCESS_KEY_ID
+#   - R2_SECRET_ACCESS_KEY
+#   - R2_ACCOUNT_ID
+#   - R2_BUCKET
+#
+# For Google Cloud Storage:
+#   - GCS_PROJECT_ID
+#   - GCS_BUCKET
+#   - GCS_SERVICE_ACCOUNT_KEY (JSON string)
+#
+# For Azure Blob Storage:
+#   - AZURE_STORAGE_ACCOUNT
+#   - AZURE_STORAGE_KEY
+#   - AZURE_CONTAINER
+#
+# Access Control (optional):
+#   - ALLOWED_DOMAINS (comma-separated, e.g., "example.com,*.example.org")
+#   - ALLOWED_ORIGINS (comma-separated, e.g., "https://example.com")
+
+[vars]
+# Non-sensitive variables can be set here
+# S3_REGION = "us-east-1"
+# S3_ENDPOINT = "https://s3.amazonaws.com"
+# S3_FORCE_PATH_STYLE = "false"
+# GITHUB_HOSTNAME = "github.com"
+# GITLAB_HOSTNAME = "gitlab.com"

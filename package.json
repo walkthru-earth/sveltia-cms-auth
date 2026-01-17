@@ -1,6 +1,6 @@
 {
   "name": "sveltia-cms-auth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -12,6 +12,10 @@
     "check:cspell": "cspell --no-progress",
     "check:prettier": "prettier --check .",
     "check:eslint": "eslint ."
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20",
+    "jose": "^5.9.6"
   },
   "devDependencies": {
     "@types/node": "^25.0.8",

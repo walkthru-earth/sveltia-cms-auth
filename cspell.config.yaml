@@ -15,14 +15,24 @@ useGitignore: true
 ignorePaths:
   - pnpm-lock.yaml
 words:
+  - Backblaze
   - cooldown
   - CVEs
+  - datestamp
   - Decap
   - esbuild
   - hostnames
   - jsdoc
   - kyoshino
   - PKCE
+  - presign
+  - presigned
+  - presigner
+  - rscc
+  - rscd
+  - rsce
+  - rscl
+  - rsct
   - singleline
   - Sveltia
   - undici
